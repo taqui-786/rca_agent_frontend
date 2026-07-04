@@ -1,65 +1,189 @@
-import Image from "next/image";
+"use client"
+
+import { useState, useEffect, useCallback, useMemo } from "react"
+import { toast } from "sonner"
+import type { Incident } from "@/lib/types"
+import { listIncidents } from "@/lib/api"
+import { IncidentForm } from "@/components/incidents/incident-form"
+import { IncidentList } from "@/components/incidents/incident-list"
+import { RcaResult } from "@/components/incidents/rca-result"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Input } from "@/components/ui/input"
+import { Search, AlertCircle, CheckCircle2, Activity, FileSearch } from "lucide-react"
 
 export default function Home() {
+  const [incidents, setIncidents] = useState<Incident[]>([])
+  const [selected, setSelected] = useState<Incident | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState("")
+
+  const fetchIncidents = useCallback(async () => {
+    try {
+      const data = await listIncidents()
+      setIncidents(data)
+    } catch {
+      // silently fail on initial load
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchIncidents()
+  }, [fetchIncidents])
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return incidents
+    const q = search.toLowerCase()
+    return incidents.filter(
+      (inc) =>
+        inc.title.toLowerCase().includes(q) ||
+        inc.service.toLowerCase().includes(q) ||
+        inc.environment.toLowerCase().includes(q) ||
+        inc.severity.toLowerCase().includes(q) ||
+        (inc.root_cause?.toLowerCase().includes(q) ?? false)
+    )
+  }, [incidents, search])
+
+  const openCount = incidents.filter((i) => i.status === "open").length
+  const resolvedCount = incidents.filter((i) => i.status === "resolved").length
+
+  function handleCreated(incident: Incident) {
+    setIncidents((prev) => [incident, ...prev])
+    setSelected(incident)
+    toast.success("Incident created", {
+      description: `RCA analysis complete for "${incident.title}"`,
+    })
+  }
+
+  function handleResolved(updated: Incident) {
+    setIncidents((prev) =>
+      prev.map((inc) => (inc.id === updated.id ? updated : inc))
+    )
+    setSelected(updated)
+    toast.success("Incident resolved", {
+      description: `"${updated.title}" has been marked as resolved`,
+    })
+  }
+
+  function handleSelect(incident: Incident) {
+    setSelected(incident)
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-7xl flex-col gap-6 p-4 md:gap-8 md:p-6">
+      {/* Page header */}
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
+          Incident Dashboard
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Track, analyze, and resolve cloud infrastructure incidents.
+        </p>
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-xs">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+            <Activity className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="text-2xl font-semibold tabular-nums leading-none">
+              {incidents.length}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">Total Incidents</p>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+        <div className="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-xs">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
+            <AlertCircle className="h-5 w-5 text-amber-500" />
+          </div>
+          <div>
+            <p className="text-2xl font-semibold tabular-nums leading-none">
+              {openCount}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">Open</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-xs">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-500/10">
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
+          </div>
+          <div>
+            <p className="text-2xl font-semibold tabular-nums leading-none">
+              {resolvedCount}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">Resolved</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Main content grid */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-5">
+        {/* Left panel */}
+        <div className="space-y-4 md:col-span-2">
+          <IncidentForm onCreated={handleCreated} />
+
+          {loading ? (
+            <div className="rounded-xl border bg-card p-4 shadow-xs">
+              <div className="space-y-3">
+                <Skeleton className="h-9 w-full" />
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-xl border bg-card shadow-xs">
+              <div className="border-b px-4 py-3">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search incidents..."
+                    className="pl-8 shadow-none"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+              <IncidentList
+                incidents={filtered}
+                selectedId={selected?.id ?? null}
+                onSelect={handleSelect}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Right panel */}
+        <div className="md:col-span-3">
+          {selected ? (
+            <RcaResult
+              key={selected.id + selected.updated_at}
+              incident={selected}
+              onResolved={handleResolved}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          ) : (
+            <div className="flex h-full min-h-[500px] items-center justify-center rounded-xl border border-dashed bg-card/50 p-8">
+              <div className="max-w-xs space-y-4 text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
+                  <FileSearch className="h-8 w-8 text-muted-foreground/60" />
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-sm font-medium text-foreground/80">
+                    No incident selected
+                  </p>
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    Create a new incident or select one from the list to view its
+                    root cause analysis.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      </main>
+      </div>
     </div>
-  );
+  )
 }
