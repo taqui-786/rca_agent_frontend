@@ -14,7 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Loader2, Plus } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Loader2, Plus, Paperclip } from "lucide-react"
 
 interface IncidentFormProps {
   onCreated: (incident: Incident) => void
@@ -135,6 +136,23 @@ export function IncidentForm({ onCreated }: IncidentFormProps) {
               disabled={loading}
               rows={3}
             />
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-muted-foreground">
+                Attach logs
+              </label>
+              <Badge variant="secondary" className="text-[10px]">
+                Coming soon
+              </Badge>
+            </div>
+            <div
+              className="flex cursor-not-allowed items-center gap-2 rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground opacity-60"
+              title="Log upload isn't supported by the backend yet — the RCA API only accepts title, severity, service, environment, and symptoms. Tracked as a future enhancement."
+            >
+              <Paperclip className="h-3.5 w-3.5" />
+              Log upload will be available once the backend API supports it
+            </div>
           </div>
           {error && (
             <p className="text-sm text-destructive">{error}</p>
