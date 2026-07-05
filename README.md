@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cloud Incident RCA Engine — Frontend
 
-## Getting Started
+Next.js dashboard for the [Cloud Incident Memory & RCA Engine](https://github.com/taqui-786/rca_agent_frontend): report an incident, get back an LLM-generated root-cause analysis pulled from similar past incidents recalled via [Cognee](https://cognee.ai), and confirm fixes so the system's memory improves over time.
 
-First, run the development server:
+This app is a thin REST client — all recall/reasoning/memory logic lives in the FastAPI backend (`RCA_agent_backend`). See `lib/api.ts` for the full request layer.
+
+## Features
+
+- **Report Incident** — form to submit title, severity, service, environment, and symptoms.
+- **RCA Result** — root cause, confidence, recommended fix, and first action returned by the backend.
+- **Memory Graph** — a small visual (symptom → service → past fix → recommendation) built from the `recalled_from` field in the RCA response — not a real graph database view.
+- **Incident History** — list of incidents submitted so far, with severity and status.
+- **Resolve** — confirm the root cause and fix that actually worked, feeding it back into the backend's memory so future recalls improve.
+
+Log/attachment upload is scaffolded in the incident form but disabled — the backend API doesn't accept it yet (see `IncidentCreate` in `lib/types.ts`).
+
+## Getting started
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:8000   # base URL of the FastAPI backend; defaults to this if unset
+```
 
-## Learn More
+Run the backend (`RCA_agent_backend`) separately — see its README for setup. Without it running, incident submission and resolve will fail.
 
-To learn more about Next.js, take a look at the following resources:
+## Tech stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Next.js 16** (App Router) + React 19
+- **Tailwind CSS 4** + shadcn/ui components (`components/ui/`)
+- **next-themes** for light/dark mode
+- **sonner** for toasts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project structure
 
-## Deploy on Vercel
+```
+app/
+  layout.tsx, page.tsx      # root layout + dashboard page
+components/
+  layout/                   # header, footer, theme toggle
+  incidents/
+    incident-form.tsx       # report-incident form
+    rca-result.tsx          # RCA output view
+    memory-graph.tsx        # recalled_from visual
+    incident-list.tsx       # history list
+    incident-card.tsx
+    resolve-dialog.tsx      # confirm root cause + fix
+  ui/                       # shadcn primitives
+lib/
+  api.ts                    # REST client — POST/GET /incidents, POST /incidents/{id}/resolve
+  types.ts                  # request/response types matching the backend's API contract
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## API contract
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The frontend expects the backend to expose:
+
+```
+POST /incidents                    → Incident (includes RCA fields)
+GET  /incidents                    → Incident[]
+GET  /incidents/{id}               → Incident
+POST /incidents/{id}/resolve       → Incident
+```
+
+See `lib/types.ts` for exact request/response shapes.
