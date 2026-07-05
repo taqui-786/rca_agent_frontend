@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes"
 import { Toaster } from "sonner"
 import "./globals.css"
 import { Header } from "@/components/layout/header"
+import { Footer } from "@/components/layout/footer"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,6 +37,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <Header />
           <main className="flex-1">{children}</main>
+          <Footer />
           <Toaster richColors position="bottom-right" />
         </ThemeProvider>
       </body>
